@@ -1,22 +1,8 @@
 name: "keydb-vs-ristretto"
 
 services:
-  keydb:
-    image: eqalpha/keydb:latest
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: >
-      keydb-server
-      --requirepass ${KEYDB_PASSWORD}
-      --server-threads 4
-    volumes:
-      - keydb_data:/data
   grafana:
     image: grafana/grafana-enterprise
     restart: unless-stopped
     ports:
      - '3000:3000'
-
-volumes:
-  keydb_data:

@@ -11,51 +11,69 @@ import (
 )
 
 const KeyBase = "key3"
-const CacheIterations = 100000
+const CacheIterations = 100_000
 
 func init() {
 	config.LoadConfig()
 }
 
 func TestRedisCache(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	db := 0
 	rdb := redis.NewClient(&redis.Options{
+		Network:  "unix",
 		Addr:     config.Values.KeyDB.Address,
 		Password: config.Values.KeyDB.Password,
-		DB:       db,
+		DB:       0,
 	})
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		panic(err)
-	}
 	defer rdb.Close()
-	// test of writing 10k plus keys
-	for i := range CacheIterations {
-		rdb.Set(t.Context(), fmt.Sprintf("%s%d", KeyBase, i), fmt.Sprintf("%d", i), 0)
+
+	start := time.Now()
+
+	for i := 0; i < CacheIterations; i++ {
+		key := fmt.Sprintf("%s%d", KeyBase, i)
+		value := fmt.Sprintf("%d", i)
+		if err := rdb.Set(ctx, key, value, 0).Err(); err != nil {
+			t.Fatalf("Redis Set error at i=%d: %v", i, err)
+		}
 	}
-	// test of getting 10k plus keys
-	for i := range CacheIterations {
-		rdb.Get(t.Context(), fmt.Sprintf("%s%d", KeyBase, i)).Result()
+	for i := 0; i < CacheIterations; i++ {
+		key := fmt.Sprintf("%s%d", KeyBase, i)
+		_, err := rdb.Get(ctx, key).Result()
+		if err != nil && err != redis.Nil {
+			t.Fatalf("Redis Get error at i=%d: %v", i, err)
+		}
 	}
+
+	t.Logf("Redis test finished in %s", time.Since(start))
 }
 
 func TestRistrettoCache(t *testing.T) {
 	cache, err := ristretto.NewCache(&ristretto.Config[string, string]{
-		NumCounters: 1e7,     // number of keys to track frequency of (10M).
-		MaxCost:     1 << 30, // 1GB.
-		BufferItems: 64,      // number of keys per Get buffer.
+		NumCounters: 1e7,
+		MaxCost:     1 << 30,
+		BufferItems: 64,
 	})
 	if err != nil {
+		t.Fatalf("Failed to create Ristretto cache: %v", err)
 	}
 	defer cache.Close()
-	// writing
-	for i := range CacheIterations {
+
+	start := time.Now()
+
+	for i := 0; i < CacheIterations; i++ {
 		cache.Set(fmt.Sprintf("%s%d", KeyBase, i), fmt.Sprintf("%d", i), 1)
 	}
-	// reading
-	for i := range CacheIterations {
-		cache.Get(fmt.Sprintf("%s%d", KeyBase, i))
+	cache.Wait()
+
+	hits := 0
+	for i := 0; i < CacheIterations; i++ {
+		if _, ok := cache.Get(fmt.Sprintf("%s%d", KeyBase, i)); ok {
+			hits++
+		}
 	}
+
+	t.Logf("Ristretto test finished in %s", time.Since(start))
+	t.Logf("Ristretto hits: %d / %d (%.2f%%)", hits, CacheIterations, float64(hits)*100/CacheIterations)
 }
