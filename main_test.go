@@ -10,7 +10,7 @@ import (
 )
 
 const KeyBase = "key3"
-const CacheIterations = 1_000_000
+const CacheIterations = 10_000_000
 
 func init() {
 	config.LoadConfig()
@@ -63,7 +63,10 @@ func TestRistrettoCache(t *testing.T) {
 	start := time.Now()
 
 	for i := 0; i < CacheIterations; i++ {
-		cache.Set(fmt.Sprintf("%s%d", KeyBase, i), fmt.Sprintf("%d", i), 1)
+		key := fmt.Sprintf("%s%d", KeyBase, i)
+		value := fmt.Sprintf("%d", i)
+		cost := int64(len(key) + len(value))
+		cache.Set(key, value, cost)
 	}
 	cache.Wait()
 
