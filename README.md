@@ -1,4 +1,4 @@
-# KeyDB vs Ristretto
+# KeyDB vs Ristretto vs Badger
 Benchmark research
 
 ## Before started
