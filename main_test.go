@@ -3,10 +3,12 @@ package main
 import (
 	"BeyCoder/keydb-vs-ristretto/config"
 	"fmt"
-	"github.com/dgraph-io/ristretto/v2"
-	"github.com/redis/go-redis/v9"
 	"testing"
 	"time"
+
+	badger "github.com/dgraph-io/badger/v4"
+	"github.com/dgraph-io/ristretto/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 const KeyBase = "key3"
@@ -79,4 +81,44 @@ func TestRistrettoCache(t *testing.T) {
 
 	t.Logf("Ristretto test finished in %s", time.Since(start))
 	t.Logf("Ristretto hits: %d / %d (%.2f%%)", hits, CacheIterations, float64(hits)*100/CacheIterations)
+}
+
+func TestBadger(t *testing.T) {
+	cache, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
+	if err != nil {
+		t.Logf("Failed to create badger cache: %v", err)
+		return
+	}
+	defer cache.Close()
+
+	start := time.Now()
+
+	for i := 0; i < CacheIterations; i++ {
+		txn := cache.NewTransaction(true)
+		key := []byte(fmt.Sprintf("%s%d", KeyBase, i))
+		txn.Set(key, []byte(fmt.Sprintf("%d", i)))
+		txn.Commit()
+	}
+
+	hits := 0
+	for i := 0; i < CacheIterations; i++ {
+		err := cache.View(func(txn *badger.Txn) error {
+		  // your code here
+		key := []byte(fmt.Sprintf("%s%d", KeyBase, i))
+		  item, err := txn.Get(key)
+		  if err != nil {
+		    return err
+		  }
+		  if item != nil {
+		    hits++
+		  }
+		  return nil
+		})
+		if err != nil {
+			t.Fatalf("Failed to read from badger cache: %v\n", err)
+			return
+		}
+	}
+	t.Logf("Badger test finished in %s", time.Since(start))
+	t.Logf("Badger hits: %d / %d (%.2f%%)", hits, CacheIterations, float64(hits)*100/CacheIterations)
 }
