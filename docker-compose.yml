@@ -1,4 +1,4 @@
-name: "test"
+name: "keydb-vs-ristretto"
 
 services:
   keydb:
@@ -9,12 +9,11 @@ services:
     command: >
       keydb-server
       --requirepass ${KEYDB_PASSWORD}
-      --server-threads 16
+      --server-threads 4
     volumes:
       - keydb_data:/data
   grafana:
     image: grafana/grafana-enterprise
-    container_name: grafana
     restart: unless-stopped
     ports:
      - '3000:3000'
