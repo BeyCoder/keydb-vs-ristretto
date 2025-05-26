@@ -1,0 +1,17 @@
+name: "test"
+
+services:
+  keydb:
+    image: eqalpha/keydb:latest
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      keydb-server
+      --requirepass ${KEYDB_PASSWORD}
+      --server-threads 16
+    volumes:
+      - keydb_data:/data
+
+volumes:
+  keydb_data:
