@@ -13,12 +13,15 @@ import (
 const KeyBase = "key3"
 const CacheIterations = 100000
 
+func init() {
+	config.LoadConfig()
+}
+
 func TestRedisCache(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	db := 0
-
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     config.Values.KeyDB.Address,
 		Password: config.Values.KeyDB.Password,
